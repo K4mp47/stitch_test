@@ -1,16 +1,34 @@
-# climate_watch
+# ClimateSafe
 
-A new Flutter project.
+A Flutter application for climate-focused navigation and safety.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+This project is a Flutter application. To get started, you will need to have the Flutter SDK installed on your machine.
 
-A few resources to get you started if this is your first Flutter project:
+### Prerequisites
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- [Flutter SDK](https://flutter.dev/docs/get-started/install)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd climate_watch
+   ```
+3. Get the dependencies:
+   ```bash
+   flutter pub get
+   ```
+
+### Running the App
+
+1. Make sure you have a device connected or an emulator running.
+2. Run the app:
+   ```bash
+   flutter run
+   ```
