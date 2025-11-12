@@ -1,102 +1,69 @@
-import React from 'react';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Search, Settings } from 'lucide-react-native';
+import React, { useEffect } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
-  SafeAreaView,
-  ImageBackground,
   TextInput,
   TouchableOpacity,
+  View
 } from 'react-native';
-import { Colors, Fonts, BorderRadius } from '../../constants/theme';
-import { SymbolView } from 'expo-symbols';
-import BottomSheet from '../../components/ui/BottomSheet';
-import { useRouter } from 'expo-router';
+import MapView from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BorderRadius, Colors } from '../../constants/theme';
 
 const MapScreen = () => {
   const router = useRouter();
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const inputRef = React.useRef<TextInput | null>(null);
+
+  useEffect(() => {
+    // Any setup if needed
+  }, []);
 
   return (
     <View style={styles.container}>
-      <ImageBackground
+      <MapView
+        style={styles.map}
+        mapPadding={{ bottom: 16, left: 16, right: 16, top: 16 }}
+      />
+      {/* <ImageBackground
         source={require('../../assets/images/map-background.png')}
-        style={styles.mapBackground}>
-        <SafeAreaView style={styles.safeArea}>
-          {/* Top App Bar */}
-          <View style={styles.topBar}>
-            <TouchableOpacity style={styles.iconButton} onPress={() => router.push('screens/SettingsScreen')}>
-              <SymbolView name="menu" size={24} tintColor="white" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Climate Watch</Text>
-            <TouchableOpacity style={styles.iconButton} onPress={() => router.push('screens/AlertDetailsScreen')}>
-              <SymbolView name="notifications" size={24} tintColor="white" />
-            </TouchableOpacity>
-          </View>
-
+        style={styles.mapBackground}> */}
+        <SafeAreaView style={styles.safeArea} pointerEvents="box-none">
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
-              <SymbolView name="search" size={24} tintColor={Colors.dark.placeholder} />
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => {
+                  if (searchOpen) {
+                    inputRef.current?.blur();
+                    setSearchOpen(false);
+                  } else {
+                    inputRef.current?.focus();
+                    setSearchOpen(true);
+                  }
+                }}
+              >
+                {!searchOpen ? (
+                  <Search color={Colors.dark.placeholder} size={24} />
+                ) : (
+                  <ArrowLeft color={Colors.dark.placeholder} size={24} />
+                )}
+              </TouchableOpacity>
               <TextInput
+                ref={inputRef}
                 placeholder="Cerca una località..."
                 placeholderTextColor={Colors.dark.placeholder}
                 style={styles.searchInput}
+                onFocus={() => setSearchOpen(true)}
               />
-            </View>
-          </View>
-
-          {/* Map Controls */}
-          <View style={styles.mapControls}>
-            <View style={styles.zoomControls}>
-              <TouchableOpacity style={styles.zoomButton}>
-                <SymbolView name="add" size={24} tintColor={Colors.dark.text} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.zoomButton, { borderTopWidth: 0 }]}>
-                <SymbolView name="remove" size={24} tintColor={Colors.dark.text} />
+              <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/screens/SettingsScreen')}>
+                <Settings color={Colors.dark.placeholder} size={24} />
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.myLocationButton}>
-              <SymbolView name="my_location" size={24} tintColor="white" />
-            </TouchableOpacity>
           </View>
         </SafeAreaView>
-      </ImageBackground>
-
-      {/* Bottom Sheet */}
-      <BottomSheet>
-        <View style={styles.sheetContent}>
-          <View style={styles.alertHeader}>
-            <View style={styles.alertIconContainer}>
-              <SymbolView name="flood" size={32} tintColor={Colors.light['alert-high']} />
-            </View>
-            <View style={styles.alertInfo}>
-              <Text style={styles.alertTitle}>Allagamento</Text>
-              <Text style={styles.alertLocation}>Via Po, 12, Milano, MI</Text>
-            </View>
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Attivo</Text>
-            </View>
-          </View>
-          <Text style={styles.alertDescription}>
-            Strada chiusa a causa di un grave allagamento dovuto a forti piogge. Si consiglia di
-            utilizzare percorsi alternativi. Altezza dell'acqua stimata a 50cm. Aggiornato 5
-            minuti fa.
-          </Text>
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('screens/PlanTripScreen')}>
-              <SymbolView name="directions" size={20} tintColor="white" />
-              <Text style={styles.primaryButtonText}>Indicazioni</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton}>
-              <SymbolView name="share" size={24} tintColor={Colors.dark.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton}>
-              <SymbolView name="flag" size={24} tintColor={Colors.dark.text} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </BottomSheet>
     </View>
   );
 };
@@ -104,13 +71,21 @@ const MapScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.dark.background,
+  },
+  map: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   mapBackground: {
     flex: 1,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: '#00000033',
   },
   topBar: {
     flexDirection: 'row',
@@ -119,8 +94,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   iconButton: {
-    width: 48,
-    height: 48,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -130,14 +105,15 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   searchContainer: {
-    paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: 12,
+    marginHorizontal: 16,
+    zIndex: 2,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.dark.inputBackground,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.full,
     paddingHorizontal: 16,
     height: 56,
   },

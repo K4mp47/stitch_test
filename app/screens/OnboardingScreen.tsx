@@ -1,24 +1,26 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Dimensions, FlatList, TouchableOpacity } from 'react-native';
-import { Colors, Fonts, BorderRadius } from '../../constants/theme';
-import { SymbolView } from 'expo-symbols';
+// import { useRouter } from 'expo-router';
 import { useRouter } from 'expo-router';
+import { Activity, Route, Shield, TriangleAlert } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import { Dimensions, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BorderRadius, Colors } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
 const features = [
   {
-    icon: 'notifications_active',
+    icon: <TriangleAlert size={48} color={'white'} />,
     title: 'Allerte in tempo reale',
     description: 'Ricevi notifiche immediate sulle emergenze climatiche.',
   },
   {
-    icon: 'route',
+    icon: <Route size={48} color={'white'} />,
     title: 'Percorsi sicuri',
     description: 'Pianifica i tuoi spostamenti evitando le aree a rischio.',
   },
   {
-    icon: 'emergency_home',
+    icon: <Activity size={48} color={'white'} />,
     title: 'Monitoraggio emergenze',
     description: 'Tieni traccia degli eventi climatici importanti in corso.',
   },
@@ -26,11 +28,19 @@ const features = [
 
 const OnboardingScreen = () => {
   const router = useRouter();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 });
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: any[] }) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index ?? 0);
+    }
+  });
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <SymbolView name="shield_with_cloud" size={32} type="hierarchical" tintColor={Colors.light.primary} />
+        <Shield size={32} color={Colors.light.primary} /> 
+        {/* <SymbolView size={32} type="hierarchical" tintColor={Colors.light.primary} /> */}
         <Text style={styles.appName}>ClimateSafe</Text>
       </View>
       <View style={styles.mainContent}>
@@ -39,11 +49,11 @@ const OnboardingScreen = () => {
           data={features}
           horizontal
           pagingEnabled
-          showsHorizontalScrollIndicator={false}
+          showsHorizontalScrollIndicator={true}
           renderItem={({ item }) => (
             <View style={styles.featureCard}>
               <View style={styles.iconContainer}>
-                <SymbolView name={item.icon} size={48} type="hierarchical" tintColor={Colors.light.primary} />
+                {item.icon}
               </View>
               <Text style={styles.featureTitle}>{item.title}</Text>
               <Text style={styles.featureDescription}>{item.description}</Text>
@@ -51,25 +61,28 @@ const OnboardingScreen = () => {
           )}
           keyExtractor={(item) => item.title}
           contentContainerStyle={styles.carouselContainer}
+          onViewableItemsChanged={onViewableItemsChanged.current}
+          viewabilityConfig={viewabilityConfig.current}
         />
         <View style={styles.indicatorContainer}>
-          <View style={[styles.indicator, styles.activeIndicator]} />
-          <View style={styles.indicator} />
-          <View style={styles.indicator} />
+          {features.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.indicator,
+                index === activeIndex ? styles.activeIndicator : null,
+              ]}
+            />
+          ))}
         </View>
       </View>
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.buttonContainer}
-          onPress={() => router.push('screens/CreateAccountScreen')}>
-          <Text style={styles.buttonText}>Crea Account</Text>
+          onPress={() => router.push('/screens/MapScreen')}
+          >
+          <Text style={styles.buttonText}>Let&apos;s choose a trip</Text>
         </TouchableOpacity>
-        <Text style={styles.loginText}>
-          Hai già un account?{' '}
-          <Text style={styles.loginLink} onPress={() => router.push('screens/CreateAccountScreen')}>
-            Accedi
-          </Text>
-        </Text>
       </View>
     </SafeAreaView>
   );
@@ -104,7 +117,6 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     textAlign: 'center',
     marginHorizontal: 16,
-    marginBottom: 24,
   },
   carouselContainer: {
     alignItems: 'center',
@@ -124,7 +136,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontFamily: 'SpaceGrotesk-Medium',
     color: Colors.dark.text,
     marginBottom: 8,
@@ -165,15 +177,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: Colors.dark.text,
     fontSize: 16,
-    fontFamily: 'SpaceGrotesk-Bold',
-  },
-  loginText: {
-    textAlign: 'center',
-    color: '#92adc9',
-    fontFamily: 'SpaceGrotesk-Regular',
-  },
-  loginLink: {
-    color: Colors.light.primary,
     fontFamily: 'SpaceGrotesk-Bold',
   },
 });
