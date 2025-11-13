@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
+import Animated, { FadeIn, SlideOutRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors } from '../../constants/theme';
 
@@ -21,50 +22,59 @@ const MapScreen = () => {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <Animated.View
+      style={styles.container}
+      entering={FadeIn.duration(250)}
+      exiting={SlideOutRight.duration(300)}
+    >
       <MapView
         style={styles.map}
-        mapPadding={{ bottom: 16, left: 16, right: 16, top: 16 }}
-      />
-      {/* <ImageBackground
-        source={require('../../assets/images/map-background.png')}
-        style={styles.mapBackground}> */}
-        <SafeAreaView style={styles.safeArea} pointerEvents="box-none">
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <View style={styles.searchBar}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => {
-                  if (searchOpen) {
-                    inputRef.current?.blur();
-                    setSearchOpen(false);
-                  } else {
-                    inputRef.current?.focus();
-                    setSearchOpen(true);
-                  }
-                }}
-              >
-                {!searchOpen ? (
-                  <Search color={Colors.dark.placeholder} size={24} />
-                ) : (
-                  <ArrowLeft color={Colors.dark.placeholder} size={24} />
-                )}
-              </TouchableOpacity>
-              <TextInput
-                ref={inputRef}
-                placeholder="Cerca una località..."
-                placeholderTextColor={Colors.dark.placeholder}
-                style={styles.searchInput}
-                onFocus={() => setSearchOpen(true)}
-              />
-              <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/screens/SettingsScreen')}>
-                <Settings color={Colors.dark.placeholder} size={24} />
-              </TouchableOpacity>
-            </View>
+        mapPadding={{ bottom: 16, left: 16, right: 16, top: 116 }}
+      >
+        <Marker
+          coordinate={{
+            latitude: 44.4949,
+            longitude: 11.3426,
+          }}
+          onPress={() => router.push('/screens/AlertDetailsScreen')}
+        />
+      </MapView>
+      <SafeAreaView style={styles.safeArea} pointerEvents="box-none">
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {
+                if (searchOpen) {
+                  inputRef.current?.blur();
+                  setSearchOpen(false);
+                } else {
+                  inputRef.current?.focus();
+                  setSearchOpen(true);
+                }
+              }}
+            >
+              {!searchOpen ? (
+                <Search color={Colors.dark.placeholder} size={24} />
+              ) : (
+                <ArrowLeft color={Colors.dark.placeholder} size={24} />
+              )}
+            </TouchableOpacity>
+            <TextInput
+              ref={inputRef}
+              placeholder="Cerca una località..."
+              placeholderTextColor={Colors.dark.placeholder}
+              style={styles.searchInput}
+              onFocus={() => setSearchOpen(true)}
+            />
+            <TouchableOpacity style={styles.iconButton} onPress={() => router.navigate('/screens/SettingsScreen')}>
+              <Settings color={Colors.dark.placeholder} size={24} />
+            </TouchableOpacity>
           </View>
-        </SafeAreaView>
-    </View>
+        </View>
+      </SafeAreaView>
+    </Animated.View>
   );
 };
 

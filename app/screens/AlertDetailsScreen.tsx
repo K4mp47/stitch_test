@@ -1,16 +1,16 @@
+import { useRouter } from 'expo-router';
+import { Headset, Map, TrafficCone, TriangleAlert } from 'lucide-react-native';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
   ScrollView,
-  ImageBackground,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View
 } from 'react-native';
-import { Colors, Fonts, BorderRadius } from '../../constants/theme';
-import { SymbolView } from 'expo-symbols';
-import { useRouter } from 'expo-router';
+import MapView, { Marker } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BorderRadius, Colors } from '../../constants/theme';
 
 const AlertDetailsScreen = () => {
   const router = useRouter();
@@ -18,35 +18,51 @@ const AlertDetailsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-          <SymbolView name="arrow_back" size={24} tintColor={Colors.dark.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Allerta Alluvione</Text>
-        <TouchableOpacity style={styles.iconButton}>
-          <SymbolView name="share" size={24} tintColor={Colors.dark.text} />
-        </TouchableOpacity>
       </View>
       <ScrollView>
         <View style={styles.chipsContainer}>
           <View style={[styles.chip, { backgroundColor: Colors.light['alert-high'] }]}>
-            <SymbolView name="warning" size={18} tintColor="white" />
+           
             <Text style={styles.chipText}>Gravità Alta</Text>
           </View>
           <View style={[styles.chip, { backgroundColor: 'rgba(96, 122, 251, 0.2)' }]}>
-            <SymbolView name="location_on" size={18} tintColor={Colors.dark.text} />
             <Text style={[styles.chipText, { color: Colors.dark.text }]}>Bologna, Italia</Text>
           </View>
         </View>
-        <ImageBackground
+        {/* <ImageBackground
           source={require('../../assets/images/static-map-view.png')}
           style={styles.mapImage}
           borderRadius={BorderRadius.xl}
+        /> */}
+        <View style={styles.mapContainer}>
+         <MapView
+          style={styles.mapImage}
+          mapPadding={{ bottom: 16, left: 16, right: 16, top: 116 }}
+          initialRegion={{
+            latitude: 44.4949,
+            longitude: 11.3426,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }}
+          // Disable all user interactions so the map cannot be moved or zoomed
+          scrollEnabled={false}
+          zoomEnabled={false}
+          rotateEnabled={false}
+          pitchEnabled={false}
+        >
+          <Marker
+          coordinate={{
+            latitude: 44.4949,
+            longitude: 11.3426,
+          }}
         />
+        </MapView>
+        </View>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Bologna, Zona Nord</Text>
           <Text style={styles.timestamp}>Aggiornato alle 14:30</Text>
           <Text style={styles.description}>
-            Le forti piogge hanno causato l'esondazione del fiume Reno, interessando le aree a
+            Le forti piogge hanno causato l&apos;esondazione del fiume Reno, interessando le aree a
             nord della città. Le autorità consigliano di evitare tutti gli spostamenti non
             essenziali.
           </Text>
@@ -55,13 +71,13 @@ const AlertDetailsScreen = () => {
         <View style={styles.safetyAdviceContainer}>
           <View style={styles.adviceRow}>
             <View style={styles.adviceIcon}>
-              <SymbolView name="directions_car" size={24} tintColor={Colors.light.primary} />
+              <TriangleAlert size={24} color={Colors.light['alert-high']} />
             </View>
             <Text style={styles.adviceText}>Non attraversare strade allagate.</Text>
           </View>
           <View style={styles.adviceRow}>
             <View style={styles.adviceIcon}>
-              <SymbolView name="landscape" size={24} tintColor={Colors.light.primary} />
+              <TrafficCone size={24} color={Colors.light['alert-medium']} />
             </View>
             <Text style={styles.adviceText}>
               Cerca un terreno più elevato se ti trovi in una zona a rischio.
@@ -69,7 +85,7 @@ const AlertDetailsScreen = () => {
           </View>
           <View style={styles.adviceRow}>
             <View style={styles.adviceIcon}>
-              <SymbolView name="campaign" size={24} tintColor={Colors.light.primary} />
+              <Headset size={24} color={Colors.light.primary} />
             </View>
             <Text style={styles.adviceText}>Segui le indicazioni delle autorità locali.</Text>
           </View>
@@ -84,17 +100,20 @@ const AlertDetailsScreen = () => {
                 <Text style={{ fontFamily: 'SpaceGrotesk-Bold' }}>+15 min</Text>
               </Text>
             </View>
-            <ImageBackground
+            {/* <ImageBackground
               source={require('../../assets/images/alternative-route-map.png')}
               style={styles.routeImage}
               borderRadius={BorderRadius.lg}
-            />
+            /> */}
+            <View style={styles.adviceIconFoot} >
+              <Map size={32} color={Colors.light.primary}/>
+            </View>
           </View>
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.ctaButton}>
-          <SymbolView name="route" size={24} tintColor="white" />
+        <TouchableOpacity style={styles.ctaButton} onPress={() => router.push('/screens/MapScreen')  }>
+          {/* <SymbolView name="route" size={24} tintColor="white" /> */}
           <Text style={styles.ctaButtonText}>Mostra Percorso Sicuro</Text>
         </TouchableOpacity>
       </View>
@@ -141,9 +160,16 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk-Medium',
     marginLeft: 4,
   },
-  mapImage: {
-    height: 200,
+   mapContainer: {
     margin: 16,
+    height: 200,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+  },
+  mapImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: BorderRadius.lg,
   },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -190,8 +216,19 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     backgroundColor: 'rgba(96, 122, 251, 0.2)',
     justifyContent: 'center',
+    textAlign: 'center',
     alignItems: 'center',
     marginRight: 16,
+  },
+  adviceIconFoot: {
+    width: 50,
+    height: 50,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(96, 122, 251, 0.2)',
+    justifyContent: 'center',
+    textAlign: 'center',
+    alignItems: 'center',
+    margin: 8,
   },
   adviceText: {
     flex: 1,

@@ -1,3 +1,4 @@
+import Slider from '@react-native-community/slider';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ScrollText } from 'lucide-react-native';
 import React from 'react';
@@ -17,6 +18,7 @@ const SettingsScreen = () => {
   const [weatherAlerts, setWeatherAlerts] = React.useState(true);
   const [floodAlerts, setFloodAlerts] = React.useState(true);
   const [fireAlerts, setFireAlerts] = React.useState(false);
+  const [alertRadius, setAlertRadius] = React.useState<number>(50);
   const router = useRouter();
 
   return (
@@ -71,11 +73,25 @@ const SettingsScreen = () => {
             </View>
             {/* Alert Radius */}
             <View style={{ marginTop: 16 }}>
-              <View style={styles.row}>
-                <Text style={styles.switchLabel}>Raggio di allerta</Text>
-                <Text style={{ color: Colors.light.primary, fontFamily: 'SpaceGrotesk-Medium' }}>
-                  50 km
-                </Text>
+                <View style={{ alignItems: 'flex-end', width: '100%' }}>
+                <View style={styles.row}>
+                  <Text style={styles.switchLabel}>Raggio Allerta</Text>
+                  <Text style={[styles.switchLabel, styles.alertValue]}>
+                    {alertRadius} km
+                  </Text>
+                </View>
+                  <Slider
+                    style={{ width: '100%', height: 40, }}
+                    minimumValue={0}
+                    maximumValue={250}
+                    step={5}
+                    value={alertRadius}
+                    onValueChange={(value) => setAlertRadius(Math.round(value))}
+                    minimumTrackTintColor={Colors.light.primary}
+                    maximumTrackTintColor="#767577"
+                    thumbTintColor="#f4f3f4"
+                  />
+                </View>
               </View>
               <Text style={styles.sliderDescription}>
                 Ricevi allerte per eventi nel raggio selezionato.
@@ -83,11 +99,9 @@ const SettingsScreen = () => {
               {/* Slider would go here */}
             </View>
           </View>
-        </View>
-
         {/* Account & Security */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account e Sicurezza</Text>
+          <Text style={styles.sectionTitle}>Sicurezza</Text>
           <View style={styles.card}>
             <TouchableOpacity style={[styles.linkRow]}>
               <Text style={styles.linkLabel}>Impostazioni Privacy</Text>
@@ -103,7 +117,7 @@ const SettingsScreen = () => {
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.saveButton}>
+        <TouchableOpacity style={styles.saveButton} onPress={() => router.back()}>
           <Text style={styles.saveButtonText}>Salva Modifiche</Text>
         </TouchableOpacity>
       </View>
@@ -159,10 +173,14 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    textAlign: 'center',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 16,
+    width: '100%',
+  },
+  alertValue: {
+    color: Colors.light.primary,
+    fontFamily: 'SpaceGrotesk-Medium',
+    textAlign: 'right',
   },
   switchRow: {
     flexDirection: 'row',
