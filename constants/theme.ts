@@ -3,7 +3,6 @@
  * These values are based on the Tailwind CSS configuration found in the design HTML files.
  */
 
-import { Platform } from 'react-native';
 
 const tintColorLight = '#607AFB'; // Primary color
 const tintColorDark = '#FFFFFF';
@@ -59,3 +58,9 @@ export const BorderRadius = {
   xl: 24,
   full: 9999,
 };
+
+export const FakeUser = {
+  name: "User",
+  email: "user@example.com",
+  password: "password123!",
+}
