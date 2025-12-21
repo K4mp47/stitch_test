@@ -1,7 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ScrollText } from 'lucide-react-native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -20,6 +21,41 @@ const SettingsScreen = () => {
   const [fireAlerts, setFireAlerts] = React.useState(false);
   const [alertRadius, setAlertRadius] = React.useState<number>(50);
   const router = useRouter();
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const saveSettings = async () => {
+    try {
+      const settings = JSON.stringify({
+        notificationsEnabled,
+        weatherAlerts,
+        floodAlerts,
+        fireAlerts,
+        alertRadius,
+      });
+      await AsyncStorage.setItem('settings', settings);
+    } catch (e) {
+      console.error('Failed to save settings.', e);
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const settings = await AsyncStorage.getItem('settings');
+      if (settings !== null) {
+        const parsedSettings = JSON.parse(settings);
+        setNotificationsEnabled(parsedSettings.notificationsEnabled);
+        setWeatherAlerts(parsedSettings.weatherAlerts);
+        setFloodAlerts(parsedSettings.floodAlerts);
+        setFireAlerts(parsedSettings.fireAlerts);
+        setAlertRadius(parsedSettings.alertRadius);
+      }
+    } catch (e) {
+      console.error('Failed to load settings.', e);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -117,7 +153,13 @@ const SettingsScreen = () => {
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.saveButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={() => {
+            saveSettings();
+            router.back();
+          }}
+        >
           <Text style={styles.saveButtonText}>Salva Modifiche</Text>
         </TouchableOpacity>
       </View>

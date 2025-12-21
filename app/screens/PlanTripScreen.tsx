@@ -7,7 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
 } from 'react-native';
-import { Colors, Fonts, BorderRadius } from '../../constants/theme';
+import { Colors, BorderRadius } from '../../constants/theme';
 import { SymbolView } from 'expo-symbols';
 import { useRouter } from 'expo-router';
 
