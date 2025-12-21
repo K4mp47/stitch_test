@@ -1,24 +1,112 @@
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, Settings } from 'lucide-react-native';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import Animated, { FadeIn, SlideOutRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors } from '../../constants/theme';
+
+interface Coordinate {
+  latitude: number;
+  longitude: number;
+}
 
 const MapScreen = () => {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = React.useState(false);
   const inputRef = React.useRef<TextInput | null>(null);
+  const [path, setPath] = useState<Coordinate[]>([]);
+  const mapRef = useRef<MapView>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = async () => {
+    if (!searchQuery) return;
+    try {
+      const geocodedLocations = await Location.geocodeAsync(searchQuery);
+      if (geocodedLocations && geocodedLocations.length > 0) {
+        const startLocation = {
+          latitude: geocodedLocations[0].latitude,
+          longitude: geocodedLocations[0].longitude,
+        };
+        setPath([startLocation]);
+        mapRef.current?.animateToRegion({
+          ...startLocation,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+      } else {
+        console.warn('Location not found');
+      }
+    } catch (error) {
+      console.error('Geocoding failed', error);
+    }
+    setSearchOpen(false);
+    inputRef.current?.blur();
+  };
 
   useEffect(() => {
-    // Any setup if needed
+    let locationSubscription: Location.LocationSubscription | null = null;
+
+    const startLocationTracking = async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('Permission to access location was denied');
+        return;
+      }
+
+      if (path.length === 0) {
+        let location = await Location.getCurrentPositionAsync({});
+        const initialCoordinate = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+        setPath([initialCoordinate]);
+        mapRef.current?.animateToRegion({
+          ...initialCoordinate,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+      }
+
+      locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 1000,
+          distanceInterval: 10,
+        },
+        (newLocation) => {
+          const newCoordinate = {
+            latitude: newLocation.coords.latitude,
+            longitude: newLocation.coords.longitude,
+          };
+          setPath((prevPath) => [...prevPath, newCoordinate]);
+          mapRef.current?.animateToRegion(
+            {
+              ...newCoordinate,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            },
+            { duration: 500 }
+          );
+        }
+      );
+    };
+
+    startLocationTracking();
+
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -28,6 +116,7 @@ const MapScreen = () => {
       exiting={SlideOutRight.duration(300)}
     >
       <MapView
+        ref={mapRef}
         style={styles.map}
         mapPadding={{ bottom: 16, left: 16, right: 16, top: 116 }}
       >
@@ -37,6 +126,11 @@ const MapScreen = () => {
             longitude: 11.3426,
           }}
           onPress={() => router.push('/screens/AlertDetailsScreen')}
+        />
+        <Polyline
+          coordinates={path}
+          strokeColor={Colors.light.primary}
+          strokeWidth={6}
         />
       </MapView>
       <SafeAreaView style={styles.safeArea} pointerEvents="box-none">
@@ -67,6 +161,10 @@ const MapScreen = () => {
               placeholderTextColor={Colors.dark.placeholder}
               style={styles.searchInput}
               onFocus={() => setSearchOpen(true)}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+              value={searchQuery}
             />
             <TouchableOpacity style={styles.iconButton} onPress={() => router.navigate('/screens/SettingsScreen')}>
               <Settings color={Colors.dark.placeholder} size={24} />
