@@ -9,10 +9,12 @@ import {
   Switch,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors } from '../../constants/theme';
+import { NotificationService } from '../services/NotificationService';
 
 const SettingsScreen = () => {
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
@@ -54,6 +56,16 @@ const SettingsScreen = () => {
       }
     } catch (e) {
       console.error('Failed to load settings.', e);
+    }
+  };
+
+const handleTestNotification = async () => {
+    try {
+      await NotificationService.testNow();
+      Alert.alert("Test Inviato", "Controlla le notifiche del dispositivo!");
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Errore", "Impossibile eseguire il test.");
     }
   };
 
@@ -132,6 +144,11 @@ const SettingsScreen = () => {
               <Text style={styles.sliderDescription}>
                 Ricevi allerte per eventi nel raggio selezionato.
               </Text>
+              <TouchableOpacity
+                style={styles.testButton}
+                onPress={handleTestNotification}>
+                    <Text style={styles.testButtonText}>⚠️ Simula Allerta (Test)</Text>
+               </TouchableOpacity>
               {/* Slider would go here */}
             </View>
           </View>
@@ -278,6 +295,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
   },
+  testButton: {
+      marginTop: 20,
+      backgroundColor: 'rgba(255, 100, 100, 0.2)',
+      padding: 12,
+      borderRadius: BorderRadius.md,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 100, 100, 0.5)',
+    },
+    testButtonText: {
+      fontFamily: 'SpaceGrotesk-Bold',
+      fontSize: 14,
+      color: Colors.light.primary,
+    },
 });
 
 export default SettingsScreen;
