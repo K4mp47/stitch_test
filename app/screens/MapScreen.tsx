@@ -98,7 +98,7 @@ const GoogleBar = () => {
           selectionColor: Colors.dark.primary,
         }}
         query={{
-          key: 'AIzaSyD5qIn4B8mSjwIAX8aq9_eGAVTbey3q7gg',
+          key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
         }}
         styles={{
           container: {
@@ -688,7 +688,7 @@ const MapContent = ({
             latitude: destination.location.lat,
             longitude: destination.location.lng,
           }}
-          apiKey={'AIzaSyD5qIn4B8mSjwIAX8aq9_eGAVTbey3q7gg'}
+          apiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!}
           strokeWidth={5}
           strokeColor={Colors.dark.primary}
           onError={(e) => console.log('Route error:', e)}
@@ -758,7 +758,7 @@ const MapScreen = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Goog-Api-Key": "AIzaSyD5qIn4B8mSjwIAX8aq9_eGAVTbey3q7gg",
+              "X-Goog-Api-Key": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!,
               "X-Goog-FieldMask":
                 "routes.distanceMeters,routes.duration,routes.legs.steps.navigationInstruction,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration,routes.legs.steps.endLocation",
             },
