@@ -11,7 +11,7 @@ import { BorderRadius, Colors } from '../constants/theme';
 
 interface MapSearchBarProps {
   googleApiKey: string;
-  onPlaceSelected: (details: any) => void;
+  onPlaceSelected: (data: any, details: any) => void;
   onSettingsPress: () => void;
 }
 
@@ -27,6 +27,8 @@ const MapSearchBar = ({ googleApiKey, onPlaceSelected, onSettingsPress }: MapSea
           onPress={() => {
             if (searchOpen) {
               inputRef.current?.blur();
+              // @ts-ignore - setAddressText exists on the ref but is not in the type definition
+              inputRef.current?.setAddressText?.('');
               setSearchOpen(false);
             } else {
               inputRef.current?.focus();
@@ -44,7 +46,13 @@ const MapSearchBar = ({ googleApiKey, onPlaceSelected, onSettingsPress }: MapSea
           ref={inputRef as any}
           placeholder="Cerca una località..."
           onPress={(data, details = null) => {
-            onPlaceSelected(details);
+            onPlaceSelected(data, details);
+            setSearchOpen(false);
+            inputRef.current?.blur();
+          }}
+          textInputProps={{
+            onFocus: () => setSearchOpen(true),
+            placeholderTextColor: Colors.dark.placeholder,
           }}
           query={{
             key: googleApiKey,
@@ -52,10 +60,14 @@ const MapSearchBar = ({ googleApiKey, onPlaceSelected, onSettingsPress }: MapSea
           }}
           styles={{
             textInput: styles.searchInput,
-            textInputContainer: {
-                flex: 1,
-            }
+            textInputContainer: styles.textInputContainer,
+            container: styles.autocompleteContainer,
+            listView: styles.listView,
+            row: styles.row,
+            description: styles.description,
           }}
+          enablePoweredByContainer={false}
+          fetchDetails={true}
         />
         <TouchableOpacity style={styles.iconButton} onPress={onSettingsPress}>
           <Settings color={Colors.dark.placeholder} size={24} />
@@ -75,15 +87,26 @@ const styles = StyleSheet.create({
   searchContainer: {
     marginTop: 12,
     marginHorizontal: 16,
-    zIndex: 2,
+    zIndex: 10,
+    width:  '100%',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     backgroundColor: Colors.dark.inputBackground,
     borderRadius: BorderRadius.full,
     paddingHorizontal: 16,
     height: 56,
+    zIndex: 10,
+  },
+  textInputContainer: {
+    flex: 1,
+    zIndex: 10,
+  },
+  autocompleteContainer: {
+    flex: 0,
+    zIndex: 10,
   },
   searchInput: {
     flex: 1,
@@ -91,6 +114,28 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontFamily: 'SpaceGrotesk-Regular',
     fontSize: 16,
+  },
+  listView: {
+    position: 'absolute',
+    top: 56,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.dark.inputBackground,
+    borderRadius: BorderRadius.full,
+    marginTop: 4,
+    zIndex: 10,
+    maxHeight: 300,
+  },
+  row: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border || '#333',
+  },
+  description: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk-Regular',
   },
 });
 

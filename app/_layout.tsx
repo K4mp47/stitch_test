@@ -1,9 +1,11 @@
 import { Colors } from '@/constants/theme';
+import { store } from '@/store/store';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect } from 'react';
+import { Provider } from 'react-redux';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -63,11 +65,13 @@ export default function RootLayout() {
   };
 
   return (
+    <Provider store={store}>
     <Stack screenOptions={stackOptions}>
       <Stack.Screen name="screens/OnboardingScreen" />
       <Stack.Screen name="screens/MapScreen" />
       <Stack.Screen name="screens/SettingsScreen" />
     </Stack>
+    </Provider>
   );
 }
   
