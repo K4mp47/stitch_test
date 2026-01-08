@@ -1,4 +1,5 @@
 // import { useRouter } from 'expo-router';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from 'expo-router';
 import { Activity, Route, Shield, TriangleAlert } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
@@ -79,7 +80,10 @@ const OnboardingScreen = () => {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.buttonContainer}
-          onPress={() => router.push('/screens/MapScreen')}
+          onPress={async () => {
+            await AsyncStorage.setItem("onboardingCompleted", "true");
+            router.replace("/screens/MapScreen");
+          }}
           >
           <Text style={styles.buttonText}>Let&apos;s choose a trip</Text>
         </TouchableOpacity>
