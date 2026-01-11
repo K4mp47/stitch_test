@@ -4,19 +4,25 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, ScrollText } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import {
+  Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
-  View,
-  Alert
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors } from '../../constants/theme';
 import { NotificationService } from '../services/NotificationService';
 
+import { useDispatch } from 'react-redux';
+import { setOrigin, setSimulationMode } from '../../store/slice';
+
 const SettingsScreen = () => {
+  const dispatch = useDispatch();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [weatherAlerts, setWeatherAlerts] = React.useState(true);
   const [floodAlerts, setFloodAlerts] = React.useState(true);
@@ -28,6 +34,7 @@ const SettingsScreen = () => {
     loadSettings();
   }, []);
 
+  // ... (saveSettings and loadSettings remain unchanged) ...
   const saveSettings = async () => {
     try {
       const settings = JSON.stringify({
@@ -59,18 +66,99 @@ const SettingsScreen = () => {
     }
   };
 
-const handleTestNotification = async () => {
-    try {
-      await NotificationService.testNow();
-      Alert.alert("Test Inviato", "Controlla le notifiche del dispositivo!");
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Errore", "Impossibile eseguire il test.");
+  const [modalVisible, setModalVisible] = React.useState(false);
+  const [simLat, setSimLat] = React.useState('44.4949'); // Default Bologna
+  const [simLng, setSimLng] = React.useState('11.3426');
+
+  // ... (useEffect and loadSettings remain unchanged)
+
+  const handleSimulateAlert = () => {
+    setModalVisible(true);
+  };
+
+  const handleTestNotification = async () => {
+    await NotificationService.testNow();
+    Alert.alert("Test Inviato", "Dovresti ricevere una notifica a breve. Se non arriva, controlla i log (Expo Go non supporta push remote, ma quelle locali dovrebbero funzionare).");
+  };
+
+  const confirmSimulation = () => {
+    const lat = parseFloat(simLat);
+    const lng = parseFloat(simLng);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      Alert.alert("Errore", "Coordinate non valide");
+      return;
     }
+
+    dispatch(setSimulationMode(true));
+    dispatch(setOrigin({
+      location: { lat, lng },
+      description: `Simulazione (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+    }));
+
+    setModalVisible(false);
+
+    Alert.alert(
+      "Posizione Impostata",
+      "La posizione manuale è attiva. Le allerte verranno caricate per questa area.",
+      [
+        { text: "Vai alla Mappa", onPress: () => router.push("/screens/MapScreen") },
+        { text: "OK", style: "cancel" }
+      ]
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Simulation Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Imposta Posizione Manuale</Text>
+
+            <Text style={styles.inputLabel}>Latitudine</Text>
+            <TextInput
+              style={styles.input}
+              value={simLat}
+              onChangeText={setSimLat}
+              keyboardType="numeric"
+              placeholder="44.4949"
+              placeholderTextColor="#999"
+            />
+
+            <Text style={styles.inputLabel}>Longitudine</Text>
+            <TextInput
+              style={styles.input}
+              value={simLng}
+              onChangeText={setSimLng}
+              keyboardType="numeric"
+              placeholder="11.3426"
+              placeholderTextColor="#999"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.buttonText}>Annulla</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={confirmSimulation}
+              >
+                <Text style={styles.buttonText}>Imposta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors.dark.text} />
@@ -121,37 +209,47 @@ const handleTestNotification = async () => {
             </View>
             {/* Alert Radius */}
             <View style={{ marginTop: 16 }}>
-                <View style={{ alignItems: 'flex-end', width: '100%' }}>
+              <View style={{ alignItems: 'flex-end', width: '100%' }}>
                 <View style={styles.row}>
                   <Text style={styles.switchLabel}>Raggio Allerta</Text>
                   <Text style={[styles.switchLabel, styles.alertValue]}>
                     {alertRadius} km
                   </Text>
                 </View>
-                  <Slider
-                    style={{ width: '100%', height: 40, }}
-                    minimumValue={0}
-                    maximumValue={250}
-                    step={5}
-                    value={alertRadius}
-                    onValueChange={(value) => setAlertRadius(Math.round(value))}
-                    minimumTrackTintColor={Colors.light.primary}
-                    maximumTrackTintColor="#767577"
-                    thumbTintColor="#f4f3f4"
-                  />
-                </View>
+                <Slider
+                  style={{ width: '100%', height: 40, }}
+                  minimumValue={0}
+                  maximumValue={250}
+                  step={5}
+                  value={alertRadius}
+                  onValueChange={(value) => setAlertRadius(Math.round(value))}
+                  minimumTrackTintColor={Colors.light.primary}
+                  maximumTrackTintColor="#767577"
+                  thumbTintColor="#f4f3f4"
+                />
               </View>
-              <Text style={styles.sliderDescription}>
-                Ricevi allerte per eventi nel raggio selezionato.
-              </Text>
-              <TouchableOpacity
-                style={styles.testButton}
-                onPress={handleTestNotification}>
-                    <Text style={styles.testButtonText}>⚠️ Simula Allerta (Test)</Text>
-               </TouchableOpacity>
-              {/* Slider would go here */}
             </View>
+            <Text style={styles.sliderDescription}>
+              Ricevi allerte per eventi nel raggio selezionato.
+            </Text>
+
+            {/* Manual Location Button */}
+            <TouchableOpacity
+              style={styles.testButton}
+              onPress={handleSimulateAlert}>
+              <Text style={styles.testButtonText}>🗺️ Imposta Posizione Manuale</Text>
+            </TouchableOpacity>
+
+            {/* Test Notification Button */}
+            <TouchableOpacity
+              style={[styles.testButton, { marginTop: 10, borderColor: 'rgba(100, 200, 100, 0.3)', backgroundColor: 'rgba(100, 200, 100, 0.1)' }]}
+              onPress={handleTestNotification}>
+              <Text style={[styles.testButtonText, { color: '#4ade80' }]}>🔔 Test Notifica Push</Text>
+            </TouchableOpacity>
+
+            {/* Slider would go here */}
           </View>
+        </View>
         {/* Account & Security */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sicurezza</Text>
@@ -296,19 +394,75 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   testButton: {
-      marginTop: 20,
-      backgroundColor: 'rgba(255, 100, 100, 0.2)',
-      padding: 12,
-      borderRadius: BorderRadius.md,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 100, 100, 0.5)',
-    },
-    testButtonText: {
-      fontFamily: 'SpaceGrotesk-Bold',
-      fontSize: 14,
-      color: Colors.light.primary,
-    },
+    marginTop: 20,
+    backgroundColor: 'rgba(255, 100, 100, 0.1)',
+    padding: 12,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 100, 100, 0.3)',
+  },
+  testButtonText: {
+    fontFamily: 'SpaceGrotesk-Bold',
+    fontSize: 14,
+    color: Colors.light['alert-high'],
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: Colors.dark.inputBackground,
+    padding: 24,
+    borderRadius: 20,
+    width: '85%',
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  inputLabel: {
+    color: '#ccc',
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  input: {
+    backgroundColor: '#333',
+    color: 'white',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#444',
+  },
+  confirmButton: {
+    backgroundColor: Colors.light.primary,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
 });
 
 export default SettingsScreen;

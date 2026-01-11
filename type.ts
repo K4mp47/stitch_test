@@ -1,4 +1,4 @@
-export interface navState {
+export type navState = {
   nav: {
     origin: {
       location: {
@@ -10,7 +10,7 @@ export interface navState {
     distance: {
       text: string;
       value: number;
-    };
+    }
     destination: {
       location: {
         lat: number;
@@ -18,7 +18,7 @@ export interface navState {
       };
       description: string;
     } | null;
-    travelTimeInformation: null | {
+    travelTimeInformation: {
       distance: {
         text: string;
         value: number;
@@ -27,6 +27,7 @@ export interface navState {
         text: string;
         value: number;
       };
-    }
+    } | null;
+    isSimulationMode?: boolean;
   }
 }

@@ -1,11 +1,11 @@
-import { selectDestination, selectOrigin, setDestination, setOrigin } from "@/store/slice";
+import { selectDestination, selectIsSimulationMode, selectOrigin, setDestination, setOrigin, setSimulationMode } from "@/store/slice";
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polygon } from "react-native-maps";
 import { MapViewRoute } from 'react-native-maps-routes';
 import Animated, { FadeIn, FadeInDown, FadeOut, SlideInDown, SlideInUp, SlideOutDown, SlideOutRight, SlideOutUp } from "react-native-reanimated";
 import { useDispatch, useSelector } from "react-redux";
@@ -44,6 +44,68 @@ const NAVIGATION_ZOOM = 18;
 const NAVIGATION_PITCH = 60;
 const STEP_ADVANCE_DISTANCE = 25; // metri
 
+// Weather Alert Types
+type WeatherAlert = {
+  alertId: string;
+  alertTitle: { text: string };
+  eventType: string;
+  description: string;
+  severity: string;
+  urgency: string;
+  certainty: string;
+  instruction?: string[];
+  safetyRecommendations?: { directive: string; subtext?: string }[];
+  polygon?: string; // JSON string
+  areaName?: string;
+  startTime?: string;
+  expirationTime?: string;
+};
+
+// Helper to parse polygon
+// Helper to parse polygon (supports Polygon and MultiPolygon)
+const parsePolygon = (polygonString: string): { latitude: number; longitude: number }[][] => {
+  try {
+    const parsed = JSON.parse(polygonString);
+    if (parsed.type === 'Polygon' && parsed.coordinates && parsed.coordinates.length > 0) {
+      // Single Polygon: wrap in array
+      return [parsed.coordinates[0].map((coord: number[]) => ({
+        latitude: coord[1],
+        longitude: coord[0],
+      }))];
+    } else if (parsed.type === 'MultiPolygon' && parsed.coordinates && parsed.coordinates.length > 0) {
+      // MultiPolygon: map each polygon
+      return parsed.coordinates.map((poly: any[]) =>
+        poly[0].map((coord: number[]) => ({
+          latitude: coord[1],
+          longitude: coord[0],
+        }))
+      );
+    }
+  } catch (e) {
+    console.error("Error parsing polygon", e);
+  }
+  return [];
+};
+
+// Calculate centroid for marker placement
+// Calculate centroid for marker placement (uses the first/largest polygon)
+const getPolygonCentroid = (polygons: { latitude: number; longitude: number }[][]) => {
+  if (!polygons.length || !polygons[0].length) return null;
+
+  // Use the first polygon for centroid (usually the main area)
+  const coords = polygons[0];
+  let latSum = 0;
+  let lngSum = 0;
+  coords.forEach(c => {
+    latSum += c.latitude;
+    lngSum += c.longitude;
+  });
+  return {
+    latitude: latSum / coords.length,
+    longitude: lngSum / coords.length,
+  };
+};
+
 // Helper functions
 const stripHtml = (html: string) => {
   return html.replace(/<[^>]*>?/gm, '');
@@ -64,7 +126,7 @@ const GoogleBar = () => {
   const autocompleteRef = useRef<any>(null);
 
   return (
-    <Animated.View 
+    <Animated.View
       style={styles.searchBarContainer}
       entering={SlideInUp.duration(400)}
       exiting={SlideOutUp.duration(400)}
@@ -89,7 +151,7 @@ const GoogleBar = () => {
         )}
         renderRightButton={() => (
           <View style={styles.searchIconContainer}>
-            <MaterialIcons name="menu" size={24} color="rgba(255, 255, 255, 0.6)" onPress={() => router.navigate("/screens/SettingsScreen")}/>
+            <MaterialIcons name="menu" size={24} color="rgba(255, 255, 255, 0.6)" onPress={() => router.navigate("/screens/SettingsScreen")} />
           </View>
         )}
         textInputProps={{
@@ -167,29 +229,29 @@ const GoogleBar = () => {
   );
 };
 
-const DestinationModal = ({ 
-  visible, 
-  onClose, 
-  onConfirm, 
-  destination, 
+const DestinationModal = ({
+  visible,
+  onClose,
+  onConfirm,
+  destination,
   origin,
   routeInfo,
   isLoadingRoute
 }: any) => {
   // Rimuoviamo il check 'if (!visible) return null' qui e lo gestiamo nel genitore
   // per permettere a Reanimated di gestire l'uscita (exiting).
-  
+
   return (
-    <Animated.View 
+    <Animated.View
       style={styles.modalContent}
       entering={SlideInDown.duration(300)} // Spring per un effetto più fluido
       exiting={SlideOutDown.duration(300)}
     >
-      <View style={styles.modalCard}>       
+      <View style={styles.modalCard}>
         <View style={styles.modalHeader}>
           <Ionicons name="location-sharp" size={28} color={Colors.dark.primary} />
           <Text style={styles.modalTitle}>Trip Details</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.closeButton}
             onPress={onClose}
           >
@@ -229,7 +291,7 @@ const DestinationModal = ({
                 <Text style={styles.routeInfoLoadingText}>Calculating route...</Text>
               </View>
             ) : routeInfo ? (
-              <Animated.View 
+              <Animated.View
                 style={styles.routeInfo}
                 entering={FadeInDown}
               >
@@ -247,8 +309,8 @@ const DestinationModal = ({
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={[styles.confirmButton, isLoadingRoute && styles.confirmButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.confirmButton, isLoadingRoute && styles.confirmButtonDisabled]}
           activeOpacity={0.8}
           onPress={onConfirm}
           disabled={isLoadingRoute}
@@ -261,11 +323,11 @@ const DestinationModal = ({
   );
 };
 
-const RideOptionsModal = ({ 
-  visible, 
-  onClose, 
+const RideOptionsModal = ({
+  visible,
+  onClose,
   onStartTrip,
-  destination, 
+  destination,
   origin,
   routeInfo
 }: any) => {
@@ -298,14 +360,14 @@ const RideOptionsModal = ({
   if (!visible) return null;
 
   return (
-    <Animated.View 
+    <Animated.View
       style={styles.modalContent}
       entering={SlideInDown.duration(300)}
       exiting={SlideOutDown.duration(300)}
     >
       <View style={styles.modalCard}>
         <View style={styles.modalHeader}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onClose}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
@@ -314,7 +376,7 @@ const RideOptionsModal = ({
           <Text style={[styles.modalTitle, { marginLeft: 16 }]}>Choose a ride</Text>
         </View>
 
-        <ScrollView 
+        <ScrollView
           style={styles.rideOptionsContainer}
           showsVerticalScrollIndicator={false}
         >
@@ -333,10 +395,10 @@ const RideOptionsModal = ({
                   styles.rideIconContainer,
                   selectedRide === option.id && styles.rideIconContainerSelected
                 ]}>
-                  <Ionicons 
-                    name={option.icon as any} 
-                    size={24} 
-                    color={selectedRide === option.id ? Colors.dark.primary : 'white'} 
+                  <Ionicons
+                    name={option.icon as any}
+                    size={24}
+                    color={selectedRide === option.id ? Colors.dark.primary : 'white'}
                   />
                 </View>
                 <View style={styles.rideDetails}>
@@ -349,8 +411,8 @@ const RideOptionsModal = ({
           ))}
         </ScrollView>
 
-        <TouchableOpacity 
-          style={styles.startTripButton} 
+        <TouchableOpacity
+          style={styles.startTripButton}
           activeOpacity={0.8}
           onPress={() => onStartTrip(selectedRide)}
         >
@@ -363,8 +425,8 @@ const RideOptionsModal = ({
   );
 };
 
-const NavigationModal = ({ 
-  visible, 
+const NavigationModal = ({
+  visible,
   onClose,
   onEndTrip,
   routeInfo,
@@ -377,12 +439,12 @@ const NavigationModal = ({
   const nextStep = routeSteps[currentStepIndex + 1];
 
   return (
-    <Animated.View 
+    <Animated.View
       style={styles.navigationOverlay}
       entering={FadeIn.duration(300)}
       exiting={FadeOut.duration(300)}
     >
-      <Animated.View 
+      <Animated.View
         style={styles.navigationCard}
         entering={SlideInDown.duration(300)}
       >
@@ -391,7 +453,7 @@ const NavigationModal = ({
             <Text style={styles.navigationTime}>{routeInfo?.duration || '--'}</Text>
             <Text style={styles.navigationDistance}>({routeInfo?.distance || '--'})</Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onClose}
             style={styles.navigationCloseButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -402,10 +464,10 @@ const NavigationModal = ({
 
         <View style={styles.navigationInstruction}>
           <View style={styles.navigationIconContainer}>
-            <Ionicons 
-              name={currentStep ? getManeuverIcon(currentStep.maneuver) : 'navigate'} 
-              size={32} 
-              color={Colors.dark.primary} 
+            <Ionicons
+              name={currentStep ? getManeuverIcon(currentStep.maneuver) : 'navigate'}
+              size={32}
+              color={Colors.dark.primary}
             />
           </View>
           <View style={styles.navigationTextContainer}>
@@ -422,11 +484,11 @@ const NavigationModal = ({
 
         <View style={styles.navigationProgress}>
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
+                styles.progressFill,
                 { width: `${((currentStepIndex + 1) / Math.max(routeSteps.length, 1)) * 100}%` }
-              ]} 
+              ]}
             />
           </View>
           <Text style={styles.progressText}>
@@ -435,7 +497,7 @@ const NavigationModal = ({
         </View>
       </Animated.View>
 
-      <Animated.View 
+      <Animated.View
         style={styles.navigationBottomPanel}
         entering={SlideInDown.delay(100).duration(300)}
       >
@@ -454,7 +516,7 @@ const NavigationModal = ({
           </TouchableOpacity>
         </View> */}
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.endTripButton}
           onPress={onEndTrip}
           activeOpacity={0.8}
@@ -467,13 +529,138 @@ const NavigationModal = ({
   );
 };
 
-const MapContent = ({ 
+const WeatherOverlay = React.memo(({ weatherAlerts, origin, onMarkerPress, isSimulationMode }: { weatherAlerts: WeatherAlert[], origin: any, onMarkerPress: (alerts: WeatherAlert[]) => void, isSimulationMode?: boolean }) => {
+
+  // Group alerts by coordinate
+  const groupedAlerts = React.useMemo(() => {
+    const groups: { [key: string]: { coordinate: any, alerts: WeatherAlert[] } } = {};
+    weatherAlerts.forEach(alert => {
+      const polygons = alert.polygon ? parsePolygon(alert.polygon) : [];
+      let markerCoord;
+      if (polygons.length > 0) {
+        markerCoord = getPolygonCentroid(polygons); // Now handles Coordinate[][]
+      } else if (origin?.location) {
+        markerCoord = { latitude: origin.location.lat, longitude: origin.location.lng };
+      }
+      if (markerCoord) {
+        const key = `${markerCoord.latitude.toFixed(4)},${markerCoord.longitude.toFixed(4)}`;
+        if (!groups[key]) {
+          groups[key] = { coordinate: markerCoord, alerts: [] };
+        }
+        groups[key].alerts.push(alert);
+      }
+    });
+    return Object.values(groups);
+  }, [weatherAlerts, origin]);
+
+  return (
+    <>
+      {/* Polygons Layer */}
+      {weatherAlerts.map((alert) => {
+        const polygons = alert.polygon ? parsePolygon(alert.polygon) : [];
+        if (polygons.length === 0) return null;
+
+        return polygons.map((polyCoords, index) => (
+          <Polygon
+            key={`poly-${alert.alertId}-${index}`}
+            coordinates={polyCoords}
+            fillColor="rgba(255, 59, 48, 0.3)"
+            strokeColor="rgba(255, 59, 48, 0.8)"
+            strokeWidth={2}
+          />
+        ));
+      })}
+
+      {/* Markers Layer - Render grouped markers */}
+      {groupedAlerts.map((group, index) => (
+        <Marker
+          key={`group-${index}`}
+          coordinate={group.coordinate}
+          onPress={() => onMarkerPress(group.alerts)}
+        >
+          <View style={{
+            backgroundColor: '#FF3B30',
+            borderRadius: 20,
+            padding: 8,
+            borderWidth: 2,
+            borderColor: 'white',
+            elevation: 5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4
+          }}>
+            <Ionicons name="warning" size={20} color="white" />
+            {group.alerts.length > 1 && (
+              <View style={{
+                backgroundColor: 'white',
+                borderRadius: 10,
+                width: 20,
+                height: 20,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Text style={{ color: '#FF3B30', fontSize: 12, fontWeight: 'bold' }}>
+                  {group.alerts.length}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Marker>
+      ))}
+
+      {/* Safe Area Marker (Simulation Mode Only) */}
+      {isSimulationMode && weatherAlerts.length === 0 && origin?.location && (
+        <Marker
+          key="safe-area-marker"
+          coordinate={{ latitude: origin.location.lat, longitude: origin.location.lng }}
+          title="Safe Area"
+          onPress={() => onMarkerPress([{
+            alertId: 'safe-001',
+            alertTitle: { text: "No Alerts Detected" },
+            startTime: new Date().toISOString(),
+            expirationTime: new Date().toISOString(),
+            eventType: "Safe",
+            severity: "Safe",
+            urgency: "Safe",
+            certainty: "Verified",
+            areaName: origin.description || "Selected Location",
+            polygon: "", // No polygon
+            description: "No weather or security alerts detected in this area. Conditions are normal.",
+            instruction: ["Enjoy your day! No risks reported."],
+            safetyRecommendations: [{ directive: "No special precautions needed." }]
+          }])}
+        >
+          <View style={{
+            backgroundColor: '#34C759', // System Green
+            borderRadius: 20,
+            padding: 8,
+            borderWidth: 2,
+            borderColor: 'white',
+            elevation: 5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+          }}>
+            <Ionicons name="checkmark-circle" size={20} color="white" />
+          </View>
+        </Marker>
+      )}
+    </>
+  );
+});
+
+const MapContent = ({
   mapPaddingBottom = 120,
   isNavigating = false,
   routeSteps = [],
   currentStepIndex = 0,
   onStepAdvance,
-}: { 
+}: {
   mapPaddingBottom?: number,
   isNavigating?: boolean,
   routeSteps?: RouteStep[],
@@ -489,11 +676,16 @@ const MapContent = ({
 
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
 
+  const isSimulationMode = useSelector(selectIsSimulationMode);
+
   // Effect per il tracking della posizione
   useEffect(() => {
     let isMounted = true;
-    
+
     const startTracking = async () => {
+      // Se in modalità simulazione, non tracciamo la posizione GPS reale
+      if (isSimulationMode) return;
+
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (!isMounted || status !== 'granted') return;
 
@@ -509,9 +701,9 @@ const MapContent = ({
           distanceInterval: 5,
         },
         (location) => {
-          if (!isMounted) return;
+          if (!isMounted || isSimulationMode) return; // Doppio controllo
           const { latitude, longitude, heading } = location.coords;
-          
+
           setUserHeading(heading || 0);
 
           // Aggiorna Redux solo se la posizione è cambiata significativamente
@@ -520,7 +712,9 @@ const MapContent = ({
             description: 'Current Location',
           }));
 
+          // ... animation logic ...
           if (isMapReady && mapViewRef.current) {
+            // ... (keep existing animation logic) ...
             if (isNavigating) {
               // Modalità navigazione con camera 3D
               mapViewRef.current.animateCamera({
@@ -565,7 +759,7 @@ const MapContent = ({
         subscription.remove();
       }
     };
-    
+
     if (isMapReady) {
       startTracking();
     }
@@ -577,7 +771,7 @@ const MapContent = ({
         locationSubscription.current = null;
       }
     };
-  }, [dispatch, isMapReady, isNavigating]); // Rimosso destination, routeSteps, currentStepIndex
+  }, [dispatch, isMapReady, isNavigating, isSimulationMode]); // Added isSimulationMode
 
   // Effetto separato per step advancement (evita ri-creazione del subscription)
   useEffect(() => {
@@ -588,7 +782,7 @@ const MapContent = ({
   // Effetto per fit to coordinates quando si imposta la destinazione
   useEffect(() => {
     if (!isMapReady || !origin || !destination || !mapViewRef.current || isNavigating) return;
-    
+
     const timer = setTimeout(() => {
       mapViewRef.current?.fitToSuppliedMarkers(
         ['Origin', 'Destination'],
@@ -602,99 +796,215 @@ const MapContent = ({
     return () => clearTimeout(timer);
   }, [destination, origin, isMapReady, mapPaddingBottom, isNavigating]);
 
+  // Effect to move camera when in simulation mode and origin changes
+  useEffect(() => {
+    if (isSimulationMode && origin?.location && isMapReady && mapViewRef.current) {
+      mapViewRef.current.animateToRegion({
+        latitude: origin.location.lat,
+        longitude: origin.location.lng,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 1000);
+    }
+  }, [origin, isSimulationMode, isMapReady]);
+
+  // Inside MapContent
+  const [weatherAlerts, setWeatherAlerts] = useState<WeatherAlert[]>([]);
+  const lastFetchLocation = useRef<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      if (!origin?.location) return;
+
+      // Note: In simulation mode we DO want to fetch real data now (per user request),
+      // so we removed the mock injection block. We just treat the simulated origin as the real one.
+
+      // Simple distance check to avoid refetching too often (e.g., 5km)
+      // We skip this check if we just switched to simulation mode (to ensure immediate fetch for new location)
+      if (lastFetchLocation.current && !isSimulationMode) {
+        const dist = getDistance(
+          { latitude: lastFetchLocation.current.lat, longitude: lastFetchLocation.current.lng },
+          { latitude: origin.location.lat, longitude: origin.location.lng }
+        );
+        if (dist < 5000) return; // Skip if moved less than 5km
+      }
+
+      try {
+        const lat = origin.location.lat;
+        const lng = origin.location.lng;
+        // We'll use the user's current location to lookup alerts.
+        const response = await fetch(
+          `https://weather.googleapis.com/v1/publicAlerts:lookup?key=${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}&location.latitude=${lat}&location.longitude=${lng}&languageCode=en`
+        );
+        const data = await response.json();
+
+        if (data.weatherAlerts) {
+          setWeatherAlerts(data.weatherAlerts);
+        } else {
+          setWeatherAlerts([]); // Clear alerts if none found
+        }
+        lastFetchLocation.current = { lat, lng };
+
+      } catch (error) {
+        console.error("Failed to fetch weather alerts", error);
+      }
+    };
+
+    if (origin?.location) {
+      fetchAlerts();
+    }
+  }, [origin?.location, isSimulationMode]);
+
+
   return (
-    <MapView
-      ref={mapViewRef}
-      mapPadding={{ top: isNavigating ? 160 : 140, left: 16, right: 16, bottom: mapPaddingBottom }}
-      style={tw`flex-1 w-full`}
-      showsUserLocation={!isNavigating}
-      showsMyLocationButton={false}
-      showsCompass={false}
-      showsScale={false}
-      initialRegion={{
-        latitude: 37.78825,
-        longitude: -122.4324,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      }}
-      onMapReady={() => setIsMapReady(true)}
-    >
-      {/* Marker personalizzato "Freccia Navigazione" */}
-      {isNavigating && origin?.location && (
-        <Marker
-          coordinate={{
-            latitude: origin.location.lat,
-            longitude: origin.location.lng,
-          }}
-          anchor={{ x: 0.5, y: 0.5 }}
-          flat={true}
-          rotation={userHeading}
-        >
-          <View style={{ 
-            width: 40, 
-            height: 40, 
-            alignItems: 'center', 
-            justifyContent: 'center'
-          }}>
+    <>
+      <MapView
+        ref={mapViewRef}
+        mapPadding={{ top: isNavigating ? 160 : 140, left: 16, right: 16, bottom: mapPaddingBottom }}
+        style={tw`flex-1 w-full`}
+        showsUserLocation={!isNavigating}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        showsScale={false}
+        initialRegion={{
+          latitude: 37.78825,
+          longitude: -122.4324,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+        onMapReady={() => setIsMapReady(true)}
+      >
+        {/* Marker personalizzato "Freccia Navigazione" */}
+        {isNavigating && origin?.location && (
+          <Marker
+            key="nav-arrow"
+            coordinate={{
+              latitude: origin.location.lat,
+              longitude: origin.location.lng,
+            }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat={true}
+            rotation={userHeading}
+          >
             <View style={{
-              backgroundColor: 'white',
-              borderRadius: 20,
-              padding: 5,
-              elevation: 5,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              <Ionicons name="navigate" size={24} color={Colors.dark.primary} />
+              <View style={{
+                backgroundColor: 'white',
+                borderRadius: 20,
+                padding: 5,
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+              }}>
+                <Ionicons name="navigate" size={24} color={Colors.dark.primary} />
+              </View>
             </View>
+          </Marker>
+        )}
+
+        {destination?.location && (
+          <Marker
+            key="dest-marker"
+            coordinate={{
+              latitude: destination.location.lat,
+              longitude: destination.location.lng,
+            }}
+            title="Destination"
+            description={destination.description}
+            identifier="Destination"
+            pinColor="red"
+          />
+        )}
+
+        {!isNavigating && origin?.location && (
+          <Marker
+            key="origin-marker"
+            coordinate={{
+              latitude: origin.location.lat,
+              longitude: origin.location.lng,
+            }}
+            title="Origin"
+            description={origin.description}
+            identifier="Origin"
+            opacity={0}
+          />
+        )}
+
+        {origin && destination && (
+          <MapViewRoute
+            origin={{
+              latitude: origin.location.lat,
+              longitude: origin.location.lng,
+            }}
+            destination={{
+              latitude: destination.location.lat,
+              longitude: destination.location.lng,
+            }}
+            apiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!}
+            strokeWidth={5}
+            strokeColor={Colors.dark.primary}
+            onError={(e) => console.log('Route error:', e)}
+          />
+        )}
+
+        {/* Weather Alerts Layer - Stabilized with Memoized Component */}
+        <WeatherOverlay
+          weatherAlerts={weatherAlerts}
+          origin={origin}
+          isSimulationMode={isSimulationMode}
+          onMarkerPress={(alert) => router.push({
+            pathname: '/screens/AlertDetailsScreen',
+            params: { alertData: JSON.stringify(alert) }
+          })}
+        />
+
+      </MapView>
+
+      {/* Exit Simulation Button - MOVED OUTSIDE MAPVIEW */}
+      {
+        isSimulationMode && (
+          <View style={{
+            position: 'absolute',
+            top: 60,
+            left: 0,
+            right: 0,
+            alignItems: 'center',
+            zIndex: 999,
+          }}>
+            <TouchableOpacity
+              onPress={() => {
+                dispatch(setSimulationMode(false));
+                // Manually restart tracking will happen via effect dependency
+                setWeatherAlerts([]);
+                alert("Simulazione terminata. Ritorno alla posizione GPS.");
+              }}
+              style={{
+                backgroundColor: '#FF3B30',
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+                borderRadius: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+              }}
+            >
+              <Ionicons name="warning" size={20} color="white" style={{ marginRight: 8 }} />
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Esci dalla Simulazione</Text>
+            </TouchableOpacity>
           </View>
-        </Marker>
-      )}
-
-      {destination?.location && (
-        <Marker
-          coordinate={{
-            latitude: destination.location.lat,
-            longitude: destination.location.lng,
-          }}
-          title="Destination"
-          description={destination.description}
-          identifier="Destination"
-          pinColor="red"
-        />
-      )}
-
-      {!isNavigating && origin?.location && (
-        <Marker
-          coordinate={{
-            latitude: origin.location.lat,
-            longitude: origin.location.lng,
-          }}
-          title="Origin"
-          description={origin.description}
-          identifier="Origin"
-          opacity={0}
-        />
-      )}
-
-      {origin && destination && (
-        <MapViewRoute
-          origin={{
-            latitude: origin.location.lat,
-            longitude: origin.location.lng,
-          }}
-          destination={{
-            latitude: destination.location.lat,
-            longitude: destination.location.lng,
-          }}
-          apiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!}
-          strokeWidth={5}
-          strokeColor={Colors.dark.primary}
-          onError={(e) => console.log('Route error:', e)}
-        />
-      )}
-    </MapView>
+        )
+      }
+    </>
   );
 };
 
@@ -779,7 +1089,7 @@ const MapScreen = () => {
                   },
                 },
               },
-              travelMode: "DRIVE", 
+              travelMode: "DRIVE",
               routingPreference: "TRAFFIC_AWARE",
               units: "METRIC",
             }),
@@ -885,15 +1195,15 @@ const MapScreen = () => {
       exiting={SlideOutRight.duration(300)}
     >
       {!destination && <GoogleBar />}
-      
-      <MapContent 
-        mapPaddingBottom={getMapPadding()} 
+
+      <MapContent
+        mapPaddingBottom={getMapPadding()}
         isNavigating={showNavigation}
         routeSteps={routeSteps}
         currentStepIndex={currentStepIndex}
         onStepAdvance={handleStepAdvance}
       />
-      
+
       {/* Usa una chiave unica basata sulla destinazione per forzare il re-mount */}
       {!showRideOptions && !showNavigation && destination && (
         <DestinationModal
