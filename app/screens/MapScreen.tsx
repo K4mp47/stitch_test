@@ -1,11 +1,12 @@
 import { selectDestination, selectIsSimulationMode, selectOrigin, setDestination, setOrigin, setSimulationMode } from "@/store/slice";
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import MapView, { Marker, Polygon } from "react-native-maps";
+import MapView, { Marker, Polygon } from "../../components/MapViewMock";
 import { MapViewRoute } from 'react-native-maps-routes';
 import Animated, { FadeIn, FadeInDown, FadeOut, SlideInDown, SlideInUp, SlideOutDown, SlideOutRight, SlideOutUp } from "react-native-reanimated";
 import { useDispatch, useSelector } from "react-redux";
@@ -121,6 +122,8 @@ const getManeuverIcon = (maneuver: string): any => {
   return 'arrow-up';
 };
 
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || Constants.expoConfig?.extra?.googleMapsApiKey;
+
 const GoogleBar = () => {
   const dispatch = useDispatch();
   const autocompleteRef = useRef<any>(null);
@@ -160,7 +163,7 @@ const GoogleBar = () => {
           selectionColor: Colors.dark.primary,
         }}
         query={{
-          key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+          key: GOOGLE_MAPS_API_KEY,
         }}
         styles={{
           container: {
@@ -834,7 +837,7 @@ const MapContent = ({
         const lng = origin.location.lng;
         // We'll use the user's current location to lookup alerts.
         const response = await fetch(
-          `https://weather.googleapis.com/v1/publicAlerts:lookup?key=${process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}&location.latitude=${lat}&location.longitude=${lng}&languageCode=en`
+          `https://weather.googleapis.com/v1/publicAlerts:lookup?key=${GOOGLE_MAPS_API_KEY}&location.latitude=${lat}&location.longitude=${lng}&languageCode=en`
         );
         const data = await response.json();
 
@@ -946,7 +949,7 @@ const MapContent = ({
               latitude: destination.location.lat,
               longitude: destination.location.lng,
             }}
-            apiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!}
+            apiKey={GOOGLE_MAPS_API_KEY!}
             strokeWidth={5}
             strokeColor={Colors.dark.primary}
             onError={(e) => console.log('Route error:', e)}
@@ -1068,7 +1071,7 @@ const MapScreen = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Goog-Api-Key": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY!,
+              "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY!,
               "X-Goog-FieldMask":
                 "routes.distanceMeters,routes.duration,routes.legs.steps.navigationInstruction,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration,routes.legs.steps.endLocation",
             },

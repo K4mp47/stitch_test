@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView, { Marker, Polygon } from 'react-native-maps';
+import MapView, { Marker, Polygon } from '../../components/MapViewMock';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors } from '../../constants/theme';
 
