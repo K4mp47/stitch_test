@@ -5,6 +5,7 @@ const initialState = {
   origin: null,
   destination: null,
   travelTimeInformation: null,
+  isSimulationMode: false,
 }
 
 export const navSlice = createSlice({
@@ -20,14 +21,18 @@ export const navSlice = createSlice({
     setTravelTimeInformation: (state, action) => {
       state.travelTimeInformation = action.payload;
     },
+    setSimulationMode: (state, action) => {
+      state.isSimulationMode = action.payload;
+    },
   },
 });
 
-export const { setOrigin, setDestination, setTravelTimeInformation } = navSlice.actions;
+export const { setOrigin, setDestination, setTravelTimeInformation, setSimulationMode } = navSlice.actions;
 
 export const selectOrigin = (state: navState) => state.nav.origin;
 export const selectDestination = (state: navState) => state.nav.destination;
 export const selectTravelTimeInformation = (state: navState) => state.nav.travelTimeInformation;
+export const selectIsSimulationMode = (state: navState) => state.nav.isSimulationMode;
 
 
 export default navSlice.reducer;
