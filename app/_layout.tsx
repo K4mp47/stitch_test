@@ -6,9 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import React, { useEffect } from 'react';
 import { Provider } from 'react-redux';
-import { NotificationService } from './services/NotificationService';
-import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { NotificationService } from '../services/NotificationService';
 
 export default function RootLayout() {
   const [loaded] = useFonts({

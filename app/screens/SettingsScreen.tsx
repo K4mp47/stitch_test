@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors } from '../../constants/theme';
-import { NotificationService } from '../services/NotificationService';
+import { NotificationService } from '../../services/NotificationService';
 
 import { useDispatch } from 'react-redux';
 import { setOrigin, setSimulationMode } from '../../store/slice';
